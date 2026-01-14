@@ -10,7 +10,7 @@ Uplift AI provides high-quality, low-latency text-to-speech synthesis optimized 
 
 This is the first integration of Uplift AI with Pipecat, starting with their TTS service. Future integrations may include additional Uplift AI services.
 
-**Company Attribution:** This integration was developed by havkerboi123 as a persona contribution to enable Uplift TTS within the Pipecat framework.
+**Company Attribution:** This integration was developed by havkerboi123 as a personal contribution to enable Uplift TTS within the Pipecat framework.
 
 ## Features
 
