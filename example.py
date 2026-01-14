@@ -39,16 +39,7 @@ from src.pipecat_upliftai.tts import UpliftHttpTTSService
 load_dotenv(override=True)
 
 transport_params = {
-    "daily": lambda: DailyParams(
-        audio_in_enabled=True,
-        audio_out_enabled=True,
-        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
-    ),
-    "twilio": lambda: FastAPIWebsocketParams(
-        audio_in_enabled=True,
-        audio_out_enabled=True,
-        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
-    ),
+    
     "webrtc": lambda: TransportParams(
         audio_in_enabled=True,
         audio_out_enabled=True,
@@ -94,6 +85,7 @@ You are a helpful assistant who answers questions about the user's basic medical
 ## Response Style
 - Answer user questions about their medical question.
 - For technical medical terms: Keep common medical terms in English (glucose, hemoglobin, cholesterol) - phrase replacement will handle correct Urdu pronunciation
+- Keep your responses short and to the point.
 
 
 """

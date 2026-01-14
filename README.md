@@ -4,7 +4,11 @@ A Pipecat integration for [Uplift AI](https://upliftai.org)'s Text-to-Speech HTT
 
 ## Introduction
 
-This integration enables Pipecat pipelines to use Uplift's TTS service for speech synthesis. Uplift AI offers multiple voices optimized for different use cases including educational content, casual conversation, and news-style delivery.
+Uplift AI provides high-quality, low-latency text-to-speech synthesis optimized for conversational AI applications. This integration enables seamless use of Uplift's TTS capabilities within Pipecat pipelines.
+
+Integration Type: This is a TTSService integration (HTTP-based service without word/timestamp alignment), using the Uplift API endpoint: https://api.upliftai.org/v1/synthesis/text-to-speech
+
+This is the first integration of Uplift AI with Pipecat, starting with their TTS service. Future integrations will include additional Uplift AI services.
 
 **Features:**
 - 4 distinct voices: Info/Edu, Gen Z, Dada Jee, Nostalgic News
@@ -67,7 +71,7 @@ OPENAI_API_KEY=your_openai_api_key
 
 2. Run the example:
 ```bash
-python examples/basic_assistant.py
+python example.py
 ```
 
 3. Open `http://localhost:7860/client` in your browser and start speaking.
@@ -81,7 +85,7 @@ The bot will listen, process your speech with OpenAI, and respond using Uplift T
 
 ## Attribution
 
-This integration was developed by [Your Name/Organization]. [If you work for Uplift AI, add: "I am part of the Uplift AI team and will actively maintain this integration."]
+This integration was developed by [havkerboi123 as a personal contribution].
 
 ## License
 
