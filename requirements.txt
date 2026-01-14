@@ -1,0 +1,9 @@
+# Core dependencies
+pipecat-ai>=0.0.86
+aiohttp>=3.8.0
+loguru>=0.7.0
+pydantic>=2.0.0
+
+# For running examples
+python-dotenv>=1.0.0
+daily-python>=0.10.0
