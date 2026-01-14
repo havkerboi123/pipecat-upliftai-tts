@@ -1,4 +1,4 @@
-# Uplift TTS Integration for Pipecat
+# UpliftAI TTS Integration for Pipecat
 
 This repository provides an integration of [Uplift AI's](https://upliftai.org) Text-to-Speech (TTS) service with the [Pipecat](https://github.com/pipecat-ai/pipecat) framework.
 
