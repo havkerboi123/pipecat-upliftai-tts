@@ -1,103 +1,241 @@
 # Uplift TTS Integration for Pipecat
 
-A Pipecat integration for [Uplift AI](https://upliftai.org)'s Text-to-Speech HTTP API, providing natural-sounding voice synthesis for conversational AI applications using the Urdu language.
+This repository provides an integration of [Uplift AI's](https://upliftai.org) Text-to-Speech (TTS) service with the [Pipecat](https://github.com/pipecat-ai/pipecat) framework.
 
-## Introduction
+## About
 
-Uplift AI provides high-quality, low-latency text-to-speech synthesis optimized for conversational AI applications. This integration enables seamless use of Uplift's TTS capabilities within Pipecat pipelines.
+Uplift AI provides high-quality, low-latency text-to-speech synthesis optimized for conversational AI applications using local languages like Urdu. This integration enables seamless use of Uplift's TTS capabilities within Pipecat pipelines.
 
-Integration Type: This is a TTSService integration (HTTP-based service without word/timestamp alignment), using the Uplift API endpoint: https://api.upliftai.org/v1/synthesis/text-to-speech
+**Integration Type:** This is a **TTSService** integration (HTTP-based service without word/timestamp alignment), using the Uplift API endpoint: `https://api.upliftai.org/v1/synthesis/text-to-speech`
 
-This is the first integration of Uplift AI with Pipecat, starting with their TTS service. Future integrations will include additional Uplift AI services.
+This is the first integration of Uplift AI with Pipecat, starting with their TTS service. Future integrations may include additional Uplift AI services.
 
-**Features:**
-- 4 distinct voices: Info/Edu, Gen Z, Dada Jee, Nostalgic News
-- Multiple audio formats: WAV, MP3, OGG, ULAW
-- Dynamic voice and format switching
-- Automatic WAV header handling
-- Full Pipecat metrics support
+**Company Attribution:** This integration was developed by havkerboi123 as a persona contribution to enable Uplift TTS within the Pipecat framework.
+
+## Features
+
+- ✅ Multiple voice options (Info/Edu, Gen Z, Dada Jee, Nostalgic News)
+- ✅ Various audio formats (WAV, MP3, OGG, ULAW)
+- ✅ Configurable sample rates
+- ✅ Async/await support
+- ✅ Comprehensive error handling
+- ✅ Metrics and usage tracking
+- ✅ Dynamic voice switching
+- ✅ Session management with aiohttp
 
 ## Installation
 
+### Install from GitHub
+
 ```bash
-pip install pipecat-ai aiohttp
+# With pip
+pip install git+https://github.com/havkerboi123/pipecat-upliftai-tts.git
+
+# With uv (recommended - faster)
+uv pip install git+https://github.com/havkerboi123/pipecat-upliftai-tts.git
 ```
 
-Get your Uplift API key at [upliftai.org](https://upliftai.org).
+> **Note:** PyPI package will be published after community review and approval.
+
+### Development Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/havkerboi123/pipecat-upliftai-tts.git
+cd pipecat-upliftai-tts
+
+# Install in editable mode
+uv pip install -e .
+# or with pip
+pip install -e .
+```
+
+## Prerequisites
+
+- Python 3.8 or higher
+- UpliftAI API key ([Get yours here](https://platform.upliftai.org/studio/api-keys))
+- OpenAI API key
+
+
+## Getting Your API Key
+
+1. Sign up at [Uplift AI](https://upliftai.org)
+2. Go to [API Keys](https://platform.upliftai.org/studio/api-keys)
+3. Generate an API key (format: `sk_api_...`)
 
 ## Usage
 
-### Basic Usage
+## Usage with Pipecat Pipeline
+
+`UpliftHttpTTSService` integrates Uplift's text-to-speech into a Pipecat pipeline, converting LLM text output into high-quality speech.
 
 ```python
-from pipecat.services.uplift.tts import UpliftHttpTTSService
+import os
+import aiohttp
 from pipecat.pipeline.pipeline import Pipeline
+from pipecat_upliftai import UpliftHttpTTSService
 
-tts = UpliftHttpTTSService(
-    api_key="sk_api_your_key_here",
-    voice_id="v_8eelc901",  # Info/Edu voice
-)
+async with aiohttp.ClientSession() as session:
+    llm = ...  # Your LLM service
+    stt = ...  # Your STT service
+    
+    tts = UpliftHttpTTSService(
+        aiohttp_session=session,
+        api_key=os.getenv("UPLIFT_API_KEY"),
+        voice_id="v_8eelc901",  # Info/Edu voice
+        output_format="WAV_22050_16",
+    )
 
-pipeline = Pipeline([
-    # ... your STT and LLM services
-    tts,
-    transport.output(),
-])
+    pipeline = Pipeline([
+        transport.input(),               # audio/user input
+        stt,                             # speech to text
+        context_aggregator.user(),       # add user text to context
+        llm,                             # LLM generates response
+        tts,                             # Uplift TTS synthesis
+        transport.output(),              # stream audio back to user
+        context_aggregator.assistant(),  # store assistant response
+    ])
 ```
+
+See [`example.py`](example.py) for a complete working example.
 
 ### Available Voices
 
-- `v_8eelc901` - Info/Edu (educational, informative)
-- `v_kwmp7zxt` - Gen Z (casual, contemporary)
-- `v_yypgzenx` - Dada Jee
-- `v_30s70t3a` - Nostalgic News (news-style)
+| Voice ID | Description |
+|----------|-------------|
+| `v_8eelc901` | Info/Edu - Clear, educational tone |
+| `v_kwmp7zxt` | Gen Z - Casual, modern style |
+| `v_yypgzenx` | Dada Jee - Traditional, respectful |
+| `v_30s70t3a` | Nostalgic News - Classic news anchor |
 
-### Audio Formats
+### Available Audio Formats
 
-WAV: `WAV_22050_16`, `WAV_22050_32`  
-MP3: `MP3_22050_32`, `MP3_22050_64`, `MP3_22050_128`  
-OGG: `OGG_22050_16`  
-ULAW: `ULAW_8000_8`
+- `WAV_22050_16` - 16-bit WAV at 22.05 kHz (default)
+- `WAV_22050_32` - 32-bit WAV at 22.05 kHz
+- `MP3_22050_32` - MP3 at 32 kbps
+- `MP3_22050_64` - MP3 at 64 kbps
+- `MP3_22050_128` - MP3 at 128 kbps
+- `OGG_22050_16` - OGG Vorbis 16-bit
+- `ULAW_8000_8` - 8-bit μ-law at 8 kHz
+
+
+
+### Dynamic Voice Switching
+
+```python
+# Change voice during runtime
+await tts.set_voice_id("v_kwmp7zxt")  # Switch to Gen Z voice
+
+# Change output format
+await tts.set_output_format("MP3_22050_128")
+```
+
+
 
 ## Running the Example
 
-### Setup
+1. Install dependencies:
+   ```bash
+   uv sync
+   # or
+   pip install -r requirements.txt
+   ```
 
-1. Create a `.env` file:
-```bash
-UPLIFT_API_KEY=sk_api_your_key_here
-OPENAI_API_KEY=your_openai_api_key
+2. Set up your environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your API keys
+   ```
+
+3. Run the example:
+   ```bash
+   python example.py
+   # or with uv
+   uv run python example.py
+   ```
+
+The bot will connect via WebRTC and synthesize text using Uplift TTS.
+
+## Configuration Options
+
+### Constructor Parameters
+
+```python
+UpliftHttpTTSService(
+    api_key: str,                    # Required: Your Uplift API key
+    base_url: str,                   # Optional: API endpoint (default: Uplift's API)
+    voice_id: str,                   # Optional: Default voice (default: "v_8eelc901")
+    output_format: str,              # Optional: Audio format (default: "WAV_22050_16")
+    sample_rate: int,                # Optional: Sample rate in Hz (default: 22050)
+    aiohttp_session: ClientSession,  # Optional: Shared aiohttp session
+    params: InputParams,             # Optional: Additional parameters
+)
 ```
 
-2. Run the example:
-```bash
-python example.py
+### Input Parameters
+
+Use the `InputParams` class for advanced configuration:
+
+```python
+from uplift_tts_service import UpliftHttpTTSService
+
+params = UpliftHttpTTSService.InputParams(
+    voice_id="v_kwmp7zxt",
+    output_format="MP3_22050_64",
+)
+
+tts = UpliftHttpTTSService(
+    api_key=api_key,
+    params=params,
+)
 ```
 
-3. Open `http://localhost:7860/client` in your browser and start speaking.
+## Error Handling
 
-The bot will listen, process your speech with OpenAI, and respond using Uplift TTS.
+The service includes comprehensive error handling:
+
+```python
+from pipecat.frames.frames import ErrorFrame
+
+async for frame in tts.run_tts("Hello world"):
+    if isinstance(frame, ErrorFrame):
+        print(f"TTS Error: {frame.error}")
+    else:
+        # Process audio frame
+        pass
+```
+
+## Limitations
+
+- Maximum text length: 2,500 characters per request
+- Rate limits apply based on your Uplift API plan
+- Some audio formats may have specific browser compatibility requirements
 
 ## Compatibility
 
-**Tested with:** Pipecat v0.0.99  
-**Minimum:** Pipecat v0.0.85+, Python 3.10+
+- **Pipecat Version:** Tested with Pipecat v0.0.86 and later
+- **Python Version:** 3.8+
+- **Dependencies:**
+  - `pipecat-ai >= 0.0.86`
+  - `aiohttp >= 3.8.0`
+  - `loguru >= 0.7.0`
 
-## Attribution
-
-This integration was developed by [havkerboi123 as a personal contribution].
-
-## License
-
-BSD-2-Clause License - matching Pipecat's license terms.
-
-```
-Copyright (c) 2024-2026, [Your Name/Organization]
-SPDX-License-Identifier: BSD 2-Clause License
-```
 
 ## Support
 
-- Integration issues: Open an issue on this repository
-- Uplift API: [upliftai.org/support](https://upliftai.org/support)
-- Pipecat: [docs.pipecat.ai](https://docs.pipecat.ai)
+- **Issues:** [GitHub Issues](https://github.com/havkerboi123/pipecat-uplift-tts/issues)
+- **Uplift AI Documentation:** [https://upliftai.org/docs](https://upliftai.org/docs)
+- **Pipecat Documentation:** [https://docs.pipecat.ai](https://docs.pipecat.ai)
+
+## License
+
+This project is licensed under the BSD 2-Clause License - see the [LICENSE](LICENSE) file for details.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
+
+## Acknowledgments
+
+- Thanks to the [Pipecat](https://github.com/pipecat-ai/pipecat) team for the excellent framework
+- Thanks to [Uplift AI](https://upliftai.org) for providing high-quality TTS services
