@@ -28,13 +28,15 @@ from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.openai.stt import OpenAISTTService
+from pipecat.services.groq.llm import GroqLLMService
 from pipecat.transports.base_output import BaseOutputTransport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
-from src.pipecat_upliftai.tts import UpliftHttpTTSService
+from src.pipecat_upliftai.tts import UpliftStreamingTTSService
+
 
 load_dotenv(override=True)
 
@@ -90,18 +92,27 @@ You are a helpful assistant who answers questions about the user's basic medical
 
 """
 
+
+
+
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     logger.info("Starting bot")
 
     async with aiohttp.ClientSession() as session:
         stt = OpenAISTTService(api_key=os.getenv("OPENAI_API_KEY"))
         
-        tts = UpliftHttpTTSService(
-            api_key=os.getenv("UPLIFTAI_API_KEY",""),
+        tts =UpliftStreamingTTSService(
+            api_key=os.getenv("UPLIFT_API_KEY"),
             voice_id="v_8eelc901",
+            aiohttp_session=session,
+        
+            
         )
 
-        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"))
+        llm =GroqLLMService(
+            api_key=os.getenv("GROQ_API_KEY"),
+            model="openai/gpt-oss-20b"
+            )
 
         messages = [
             {
@@ -179,7 +190,6 @@ async def bot(runner_args: RunnerArguments):
 
 if __name__ == "__main__":
     from pipecat.runner.run import main
-
     main()
 
     

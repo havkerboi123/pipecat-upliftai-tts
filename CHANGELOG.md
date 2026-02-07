@@ -1,8 +1,7 @@
 # Changelog
-
 All notable changes to the Uplift TTS integration for Pipecat.
 
-## [1.0.0] - 2026-01-15
+## [1.0.0] - 2026-02-08
 
 ### Added
 - Initial release of Uplift TTS integration for Pipecat
@@ -11,10 +10,10 @@ All notable changes to the Uplift TTS integration for Pipecat.
 - Dynamic voice and format switching
 - Comprehensive error handling and metrics tracking
 - Full Pipecat pipeline integration
+- Streaming audio support
 - Tested with Pipecat v0.0.86 and Python 3.8+
 
 ## [Unreleased]
 
 ### Planned
-- Streaming audio support
-
+- Additional voice customization options

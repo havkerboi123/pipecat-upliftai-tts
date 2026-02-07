@@ -272,38 +272,154 @@ class UpliftHttpTTSService(TTSService):
 
                 audio_bytes = await response.read()
 
-                await self.start_tts_usage_metrics(text)
+            # Stop TTFB metrics immediately after receiving response
+            await self.stop_ttfb_metrics()
+            await self.start_tts_usage_metrics(text)
 
-                yield TTSStartedFrame()
+            yield TTSStartedFrame()
 
-                # WAV formats include a 44-byte header that must be skipped
-                # MP3 and OGG formats contain raw audio data without headers
-                if self._settings["output_format"].startswith("WAV_"):
-                    audio_content = audio_bytes[44:]
-                    logger.debug("Skipping WAV header (44 bytes)")
-                else:
-                    audio_content = audio_bytes
-                    logger.debug("Using raw audio bytes (no header to skip)")
+            # WAV formats include a 44-byte header that must be skipped
+            # MP3 and OGG formats contain raw audio data without headers
+            if self._settings["output_format"].startswith("WAV_"):
+                audio_content = audio_bytes[44:]
+                logger.debug("Skipped WAV header (44 bytes)")
+            else:
+                audio_content = audio_bytes
+                logger.debug("Using raw audio bytes (no header to skip)")
 
-                CHUNK_SIZE = self.chunk_size
+            # Yield entire audio in a single frame
+            frame = TTSAudioRawFrame(audio_content, self.sample_rate, 1)
+            yield frame
 
-                for i in range(0, len(audio_content), CHUNK_SIZE):
-                    chunk = audio_content[i : i + CHUNK_SIZE]
-                    if not chunk:
-                        break
-                    await self.stop_ttfb_metrics()
-                    # Wrapping audio bytes in a Pipecat frame
-                    frame = TTSAudioRawFrame(chunk, self.sample_rate, 1)
-                    yield frame
-
-                yield TTSStoppedFrame()
+            yield TTSStoppedFrame()
 
         except Exception as e:
             error_message = f"TTS generation error: {str(e)}"
             logger.error(error_message)
             
-            # error to pipeline
+            # Push error to pipeline
             await self.push_error(ErrorFrame(error=error_message))
             
-            # yield error frame
+            # Yield error frame
             yield ErrorFrame(error=error_message)
+
+class UpliftStreamingTTSService(TTSService):
+    """Uplift AI streaming TTS service.
+    
+    Provides text-to-speech synthesis using Uplift AI's streaming endpoint.
+    Supports low-latency audio generation with chunked transfer encoding.
+    Optimized for Urdu language with support for multiple voice styles.
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        voice_id: str = "v_8eelc901",
+        aiohttp_session: aiohttp.ClientSession,
+        sample_rate: int = 22050,
+        **kwargs,
+    ):
+        """Initialize Uplift streaming TTS service.
+
+        Args:
+            api_key: Uplift AI API key for authentication.
+            voice_id: Voice identifier. Options:
+                - v_8eelc901: Info/Edu voice
+                - v_kwmp7zxt: Gen Z voice
+                - v_yypgzenx: Dada Jee voice
+                - v_30s70t3a: Nostalgic News voice
+            aiohttp_session: Shared aiohttp session for HTTP requests.
+            sample_rate: Audio sample rate (fixed at 22050 Hz for Uplift).
+            **kwargs: Additional arguments passed to parent TTSService.
+        """
+        # Uplift only supports 22050 Hz
+        if sample_rate != 22050:
+            logger.warning(
+                f"Uplift TTS only supports 22050 Hz sample rate. "
+                f"Provided {sample_rate} Hz will be overridden."
+            )
+        
+        super().__init__(sample_rate=22050, **kwargs)
+        
+        self._api_key = api_key
+        self._session = aiohttp_session
+        self._stream_url = "https://api.upliftai.org/v1/synthesis/text-to-speech/stream"
+        
+        self._settings = {
+            "voice_id": voice_id,
+            "output_format": "WAV_22050_32",  # Best for streaming (lossless, standard header)
+        }
+
+    def can_generate_metrics(self) -> bool:
+        """Check if this service can generate processing metrics.
+
+        Returns:
+            True, as Uplift TTS service supports metrics generation.
+        """
+        return True
+
+    @traced_tts
+    async def run_tts(self, text: str) -> AsyncGenerator[Frame, None]:
+        """Generate speech from text using Uplift's streaming API.
+
+        Args:
+            text: The text to synthesize into speech. Maximum length: 2500 characters.
+                For best results with Urdu, use Urdu script for Urdu words and ASCII
+                for English words. Example: "یہ ایک exerted force ہے"
+
+        Yields:
+            Frame: Audio frames containing the synthesized speech.
+        """
+        logger.debug(f"{self}: Generating TTS [{text}]")
+
+        # Validate text length
+        if len(text) > 2500:
+            logger.warning(
+                f"Text length ({len(text)}) exceeds Uplift's maximum of 2500 characters. "
+                f"Truncating..."
+            )
+            text = text[:2500]
+
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "text": text,
+            "voiceId": self._settings["voice_id"],
+            "outputFormat": self._settings["output_format"],
+        }
+
+        try:
+            await self.start_ttfb_metrics()
+
+            async with self._session.post(
+                self._stream_url, json=payload, headers=headers
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    error_message = f"Uplift streaming TTS error: {response.status} - {error_text}"
+                    logger.error(error_message)
+                    yield ErrorFrame(error=error_message)
+                    return
+
+                await self.start_tts_usage_metrics(text)
+                yield TTSStartedFrame()
+
+                
+                async for frame in self._stream_audio_frames_from_iterator(
+                    response.content.iter_chunked(self.chunk_size),
+                    strip_wav_header=True,
+                ):
+                    await self.stop_ttfb_metrics()
+                    yield frame
+
+        except Exception as e:
+            error_message = f"TTS streaming error: {str(e)}"
+            logger.error(error_message)
+            yield ErrorFrame(error=error_message)
+        finally:
+            await self.stop_ttfb_metrics()
+            yield TTSStoppedFrame()
